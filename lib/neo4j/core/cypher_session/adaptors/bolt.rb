@@ -30,6 +30,8 @@ module Neo4j
           end
 
           def connect
+            @socket.setup # Necessary for secure connections
+
             handshake
 
             init
@@ -354,6 +356,10 @@ module Neo4j
               @socket = TCPSocket.open(host, port)
             end
 
+            def setup
+              # No need to setup anything in TCPSocket
+            end
+
             def_delegators :@socket, :ready?, :shutdown, :close
 
             def send_message(message)
@@ -370,14 +376,11 @@ module Neo4j
           class SecureSocketWrapper < SocketWrapper
             def initialize(host, port, options)
               super(host, port)
+              @connection_options = options
+            end
 
-              ssl_context = OpenSSL::SSL::SSLContext.new
-              ssl_context.set_params(ssl_params_from_options(options))
-
-              @ssl_socket = OpenSSL::SSL::SSLSocket.new(@socket, ssl_context).tap do |socket|
-                socket.sync_close = true
-                socket.connect
-              end
+            def setup
+              wrap_socket_with_ssl(@connection_options)
             end
 
             def_delegators :@ssl_socket, :close
@@ -400,6 +403,16 @@ module Neo4j
             end
 
             private
+
+            def wrap_socket_with_ssl(options)
+              ssl_context = OpenSSL::SSL::SSLContext.new
+              ssl_context.set_params(ssl_params_from_options(options))
+
+              @ssl_socket = OpenSSL::SSL::SSLSocket.new(@socket, ssl_context).tap do |socket|
+                socket.sync_close = true
+                socket.connect
+              end
+            end
 
             def ssl_params_from_options(options)
               ssl_options = options.fetch(:ssl)
