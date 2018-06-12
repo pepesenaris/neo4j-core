@@ -13,6 +13,7 @@ class ChunkWriterIO < StringIO
 
   # Write some bytes, splitting into chunks if necessary.
   def write_with_chunking(string)
+    puts "string in write_with_chunking: #{string}"
     until string.empty?
       future_size = @output_size + string.size
       if future_size >= MAX_CHUNK_SIZE
